@@ -1,4 +1,3 @@
-import React, { useState, useRef, useEffect } from 'react';
 import { 
   StyleSheet, 
   Text, 
@@ -9,10 +8,14 @@ import {
   Animated,
   SafeAreaView,
   Platform,
-  StatusBar
+  StatusBar,
+  Alert,
+  ActivityIndicator
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import HeartFailurePredictionScreen from '@/components/HeartFailurePredictionScreen';
+import React, { useState, useRef, useEffect } from 'react';
+import * as DocumentPicker from 'expo-document-picker';
 
 type TabType = 'about' | 'prediction' | 'retrain';
 
@@ -36,9 +39,9 @@ const Button: React.FC<{ onPress: () => void; children: React.ReactNode }> = ({ 
   </TouchableOpacity>
 );
 
-const NavItem: React.FC<{ icon: any; label: string; isActive: boolean; onPress: () => void }> = ({ icon, label, isActive, onPress }) => (
+const NavItem: React.FC<{ icon: string; label: string; isActive: boolean; onPress: () => void }> = ({ icon, label, isActive, onPress }) => (
   <TouchableOpacity onPress={onPress} style={styles.navItem}>
-    <Ionicons name={icon} size={24} color={isActive ? '#8a2387' : '#999'} />
+    <Ionicons name={icon as keyof typeof Ionicons | undefined} size={24} color={isActive ? '#8a2387' : '#999'} />
     <Text style={[styles.navLabel, isActive && styles.navLabelActive]}>{label}</Text>
     {isActive && <View style={styles.navItemActiveIndicator} />}
   </TouchableOpacity>
@@ -46,14 +49,7 @@ const NavItem: React.FC<{ icon: any; label: string; isActive: boolean; onPress: 
 
 const Header: React.FC = () => (
   <View style={styles.header}>
-    <View style={styles.headerLeft}>
-      <Ionicons name="person" size={24} color="#8a2387" />
-      <Text style={styles.headerText}>John Doe</Text>
-    </View>
-    <View style={styles.headerRight}>
-      <Ionicons name="notifications" size={24} color="#666" />
-      <Ionicons name="settings" size={24} color="#666" />
-    </View>
+   
   </View>
 );
 
@@ -74,7 +70,7 @@ const About: React.FC = () => (
       </View>
     </View>
     <Button onPress={() => console.log('Learn More')}>
-      <Text style={styles.buttonText}>Learn More</Text>
+      <Text style={styles.buttonText}>View Data Source</Text>
       <Ionicons name="chevron-forward" size={16} color="#fff" />
     </Button>
   </GlassMorphicBox>
@@ -115,27 +111,56 @@ const Prediction: React.FC = () => (
 
 const Retrain: React.FC = () => {
   const [retrainProgress, setRetrainProgress] = useState(0);
-  const [retrainResult, setRetrainResult] = useState(null);
+  const [retrainResult, setRetrainResult] = useState<any>(null);
+  const [isLoading, setIsLoading] = useState(false);
+  const [fileUri, setFileUri] = useState<string | null>(null);
+
+  const handleFilePick = async () => {
+    try {
+      const result = await DocumentPicker.getDocumentAsync({
+        type: ['application/json'], // Specify file types here
+      });
+      if (result.type === 'success') {
+        setFileUri(result.uri);
+      }
+    } catch (error) {
+      Alert.alert('Error', 'Failed to pick file. Please try again.');
+    }
+  };
 
   const handleRetrain = async () => {
+    if (!fileUri) {
+      Alert.alert('Error', 'Please select a file to upload.');
+      return;
+    }
+    
+    setIsLoading(true);
+
     try {
-      // Simulating file upload and retraining process
+      // Simulate file upload and retraining process
       for (let i = 0; i <= 100; i += 10) {
         setRetrainProgress(i);
         await new Promise(resolve => setTimeout(resolve, 500));
       }
 
-      const response = await fetch('http://your-api-url/retrain', {
+      const response = await fetch('https://heart-failure-prediction-ktzo.onrender.com/retrain', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({ /* training data */ }),
+        body: JSON.stringify({ /* Replace with actual data from file */ }),
       });
+
+      if (!response.ok) {
+        throw new Error('Failed to retrain model');
+      }
+
       const result = await response.json();
       setRetrainResult(result);
     } catch (error) {
       Alert.alert('Error', 'Failed to retrain model. Please try again.');
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -145,8 +170,8 @@ const Retrain: React.FC = () => {
       <Text style={styles.sectionText}>
         Improve our heart failure prediction model by uploading new patient data. This process adapts the model to the latest clinical trends and patterns.
       </Text>
-      <TouchableOpacity style={styles.fileUpload}>
-        <Text style={styles.fileUploadText}>Choose file to upload</Text>
+      <TouchableOpacity style={styles.fileUpload} onPress={handleFilePick}>
+        <Text style={styles.fileUploadText}>{fileUri ? 'File Selected' : 'Choose file to upload'}</Text>
       </TouchableOpacity>
       <View style={styles.progressContainer}>
         <View style={styles.progressBar}>
@@ -158,6 +183,7 @@ const Retrain: React.FC = () => {
         <Text style={styles.buttonText}>Start Retraining</Text>
         <Ionicons name="refresh" size={16} color="#fff" />
       </Button>
+      {isLoading && <ActivityIndicator size="large" color="#8a2387" />}
       {retrainResult && (
         <View style={styles.retrainResult}>
           <Text style={styles.resultText}>Model Accuracy: {(retrainResult.accuracy * 100).toFixed(2)}%</Text>
@@ -167,6 +193,7 @@ const Retrain: React.FC = () => {
     </GlassMorphicBox>
   );
 };
+
 
 export default function App() {
   const [activeTab, setActiveTab] = useState<TabType>('prediction');
@@ -181,83 +208,92 @@ export default function App() {
   }, [fadeAnim]);
 
   return (
-    <SafeAreaView style={styles.safeArea}>
       <GradientBackground>
         <Animated.View style={[styles.content, { opacity: fadeAnim }]}>
           <Header />
           <ScrollView contentContainerStyle={styles.scrollContent}>
             {activeTab === 'about' && <About />}
             {activeTab === 'prediction' && <HeartFailurePredictionScreen />}
-
-{activeTab === 'retrain' && <Retrain />}
+            {activeTab === 'retrain' && <Retrain />}
           </ScrollView>
         </Animated.View>
         <View style={styles.navBar}>
           <NavItem icon="book" label="About" isActive={activeTab === 'about'} onPress={() => setActiveTab('about')} />
           <NavItem 
-  icon="heart" 
-  label="Predict" 
-  isActive={activeTab === 'prediction'} 
-  onPress={() => setActiveTab('prediction')} 
-/>          <NavItem icon="refresh" label="Retrain" isActive={activeTab === 'retrain'} onPress={() => setActiveTab('retrain')} />
+            icon="heart" 
+            label="Predict" 
+            isActive={activeTab === 'prediction'} 
+            onPress={() => setActiveTab('prediction')} 
+          />
+          <NavItem icon="refresh" label="Retrain" isActive={activeTab === 'retrain'} onPress={() => setActiveTab('retrain')} />
         </View>
       </GradientBackground>
-    </SafeAreaView>
   );
 }
 
 const styles = StyleSheet.create({
   safeArea: {
     flex: 1,
+    backgroundColor: '#F5F5F5',
     paddingTop: Platform.OS === 'android' ? StatusBar.currentHeight : 0,
+
+
   },
   gradientBackground: {
     flex: 1,
-    backgroundColor: '#8a2387', // Fallback color
+    padding: 10,
+    backgroundColor: '#874f41',
+    
   },
   content: {
     flex: 1,
-    paddingTop: 20,
+    paddingHorizontal: 20,
   },
   scrollContent: {
-    padding: 20,
-  },
-  glassMorphicBox: {
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 20,
-    padding: 20,
-    marginBottom: 20,
+    flexGrow: 1,
+    justifyContent: 'center',
   },
   header: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    paddingHorizontal: 20,
-    marginBottom: 20,
+    marginBottom: 50,
   },
   headerLeft: {
     flexDirection: 'row',
     alignItems: 'center',
   },
-  headerText: {
-    marginLeft: 10,
-    fontSize: 16,
-    fontWeight: 'bold',
-    color: '#fff',
-  },
   headerRight: {
     flexDirection: 'row',
+    alignItems: 'center',
+  },
+  headerText: {
+    marginLeft: 10,
+    fontSize: 18,
+    fontWeight: 'bold',
+    color: '#f1f1f1',
+  },
+  glassMorphicBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 5,
   },
   sectionTitle: {
     fontSize: 24,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 10,
+    color: '#f1f1f1',
   },
   sectionText: {
     fontSize: 16,
-    color: '#f0f0f0',
     marginBottom: 20,
+    color: '#f1f1f1',
   },
   featuresGrid: {
     flexDirection: 'row',
@@ -265,61 +301,87 @@ const styles = StyleSheet.create({
     marginBottom: 20,
   },
   featureItem: {
-    flex: 1,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
+    width: '48%',
+    backgroundColor: '#f5f5f5',
+    borderRadius: 15,
     padding: 10,
-    marginHorizontal: 5,
   },
   featureTitle: {
     fontSize: 16,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 5,
+    color: '#333',
   },
   featureText: {
     fontSize: 14,
-    color: '#f0f0f0',
+    color: '#666',
   },
   button: {
-    borderRadius: 25,
-    overflow: 'hidden',
+    marginTop: 10,
+    backgroundColor: 'rgba(255, 255, 255, 0.2)',
+    borderRadius: 20,
+    paddingVertical: 10,
+    paddingHorizontal: 15,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   buttonGradient: {
-    backgroundColor: '#e94057',
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    flexDirection: 'row',
-    justifyContent: 'center',
+    flex: 1,
     alignItems: 'center',
   },
   buttonText: {
-    color: '#fff',
     fontSize: 16,
     fontWeight: 'bold',
-    marginRight: 5,
+    color: '#fff',
+  },
+  navBar: {
+    flexDirection: 'row',
+    justifyContent: 'space-around',
+    alignItems: 'center',
+    backgroundColor: 'rgba(255, 255, 255, 0.8)',
+    borderRadius: 15,
+    padding: 10,
+  },
+  navItem: {
+    alignItems: 'center',
+  },
+  navLabel: {
+    fontSize: 14,
+    color: '#999',
+  },
+  navLabelActive: {
+    color: '#8a2387',
+    fontWeight: 'bold',
+  },
+  navItemActiveIndicator: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: '#8a2387',
+    marginTop: 5,
   },
   inputContainer: {
     marginBottom: 20,
   },
   input: {
+    height: 50,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderWidth: 1,
+    borderRadius: 15,
+    paddingHorizontal: 15,
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
-    paddingHorizontal: 20,
-    paddingVertical: 12,
-    fontSize: 16,
     color: '#fff',
   },
   inputIndicators: {
     flexDirection: 'row',
-    justifyContent: 'flex-end',
+    justifyContent: 'space-between',
     marginTop: 5,
   },
   inputIndicator: {
-    width: 8,
-    height: 8,
-    borderRadius: 4,
-    marginLeft: 5,
+    flex: 1,
+    height: 2,
+    marginHorizontal: 1,
   },
   buttonRow: {
     flexDirection: 'row',
@@ -328,14 +390,14 @@ const styles = StyleSheet.create({
   },
   predictionResult: {
     backgroundColor: 'rgba(255, 255, 255, 0.1)',
-    borderRadius: 10,
+    borderRadius: 15,
     padding: 15,
   },
   predictionTitle: {
     fontSize: 18,
     fontWeight: 'bold',
-    color: '#fff',
     marginBottom: 10,
+    color: '#333',
   },
   predictionRow: {
     flexDirection: 'row',
@@ -344,72 +406,47 @@ const styles = StyleSheet.create({
   },
   predictionLabel: {
     fontSize: 16,
-    color: '#f0f0f0',
+    color: '#666',
   },
   predictionValue: {
-    fontSize: 18,
+    fontSize: 16,
     fontWeight: 'bold',
-    color: '#4caf50',
+    color: '#8a2387',
   },
   fileUpload: {
     backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 25,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
+    borderRadius: 15,
+    padding: 15,
     marginBottom: 20,
   },
   fileUploadText: {
-    color: '#fff',
     fontSize: 16,
-    textAlign: 'center',
+    color: '#fff',
   },
   progressContainer: {
     marginBottom: 20,
   },
   progressBar: {
-    height: 10,
-    backgroundColor: 'rgba(255, 255, 255, 0.2)',
-    borderRadius: 5,
+    height: 8,
+    borderRadius: 4,
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
     overflow: 'hidden',
   },
   progressFill: {
     height: '100%',
-    backgroundColor: '#4caf50',
-  },
-  progressLabels: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    marginTop: 5,
+    backgroundColor: '#8a2387',
   },
   progressLabel: {
+    marginTop: 10,
     fontSize: 14,
-    color: '#f0f0f0',
+    color: '#fff',
   },
-  navBar: {
-    flexDirection: 'row',
-    justifyContent: 'space-around',
-    paddingVertical: 10,
-    paddingHorizontal: 20,
-    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+  retrainResult: {
+    marginTop: 20,
   },
-  navItem: {
-    alignItems: 'center',
-  },
-  navLabel: {
-    fontSize: 12,
-    color: '#999',
-    marginTop: 5,
-  },
-  navLabelActive: {
-    color: '#8a2387',
-    fontWeight: 'bold',
-  },
-  navItemActiveIndicator: {
-    position: 'absolute',
-    bottom: -10,
-    width: 5,
-    height: 5,
-    borderRadius: 2.5,
-    backgroundColor: '#8a2387',
+  resultText: {
+    fontSize: 16,
+    color: '#666',
+    marginBottom: 5,
   },
 });

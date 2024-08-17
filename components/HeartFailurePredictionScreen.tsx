@@ -29,6 +29,12 @@ interface PredictionResult {
   death_risk: string;
 }
 
+const GradientBackground: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+  <View style={styles.gradientBackground}>
+    {children}
+  </View>
+);
+
 const HeartFailurePredictionScreen: React.FC = () => {
   const [patientData, setPatientData] = useState<PatientData>({
     age: '',
@@ -53,196 +59,225 @@ const HeartFailurePredictionScreen: React.FC = () => {
 
   const handlePredict = async () => {
     try {
-      // Simulating API call
-      const mockPrediction: PredictionResult = {
-        death_probability: Math.random(),
-        death_risk: Math.random() > 0.5 ? 'High' : 'Low',
-      };
-      setPrediction(mockPrediction);
+      const response = await fetch('https://heart-failure-prediction-ktzo.onrender.com/predict', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          age: parseInt(patientData.age),
+          anaemia: patientData.anaemia,
+          creatinine_phosphokinase: parseInt(patientData.creatinine_phosphokinase),
+          diabetes: patientData.diabetes,
+          ejection_fraction: patientData.ejection_fraction,
+          high_blood_pressure: patientData.high_blood_pressure,
+          platelets: parseFloat(patientData.platelets),
+          serum_creatinine: parseFloat(patientData.serum_creatinine),
+          serum_sodium: parseInt(patientData.serum_sodium),
+          sex: patientData.sex,
+          smoking: patientData.smoking,
+          time: parseInt(patientData.time),
+        }),
+      });
+
+      if (!response.ok) {
+        throw new Error('Network response was not ok');
+      }
+
+      const result: PredictionResult = await response.json();
+      setPrediction(result);
+
+      // Show alert with the prediction result
+      Alert.alert(
+        'Prediction Result',
+        `Death Probability: ${(result.death_probability).toFixed(2)}\nDeath Risk: ${result.death_risk}`,
+        [
+          {
+            text: 'Clear',
+            onPress: () => setPrediction(null),
+            style: 'cancel',
+          },
+          { text: 'OK' },
+        ]
+      );
     } catch (error) {
       Alert.alert('Error', 'Failed to get prediction. Please try again.');
     }
   };
 
   return (
-    <ScrollView style={styles.container}>
-      <View style={styles.card}>
-        <Text style={styles.cardTitle}>Heart Failure Prediction</Text>
-        <Text style={styles.cardDescription}>
-          Enter patient data to predict heart failure risk
-        </Text>
-        <TextInput
-          style={styles.input}
-          placeholder="Age"
-          value={patientData.age}
-          onChangeText={(text) => handleInputChange('age', text)}
-          keyboardType="numeric"
-        />
-        <Text style={styles.label}>Anaemia: {patientData.anaemia ? 'Yes' : 'No'}</Text>
-        <TouchableOpacity
-          style={styles.toggleButton}
-          onPress={() => handleInputChange('anaemia', patientData.anaemia ? 0 : 1)}
-        >
-          <Text style={styles.toggleButtonText}>Toggle Anaemia</Text>
-        </TouchableOpacity>
-        <TextInput
-          style={styles.input}
-          placeholder="Creatinine Phosphokinase"
-          value={patientData.creatinine_phosphokinase}
-          onChangeText={(text) => handleInputChange('creatinine_phosphokinase', text)}
-          keyboardType="numeric"
-        />
-        <Text style={styles.label}>Diabetes: {patientData.diabetes ? 'Yes' : 'No'}</Text>
-        <TouchableOpacity
-          style={styles.toggleButton}
-          onPress={() => handleInputChange('diabetes', patientData.diabetes ? 0 : 1)}
-        >
-          <Text style={styles.toggleButtonText}>Toggle Diabetes</Text>
-        </TouchableOpacity>
-        <Text style={styles.label}>Ejection Fraction: {patientData.ejection_fraction}%</Text>
-        <View style={styles.sliderContainer}>
-          <TouchableOpacity
-            style={styles.sliderButton}
-            onPress={() => handleInputChange('ejection_fraction', Math.max(0, patientData.ejection_fraction - 1))}
-          >
-            <Text style={styles.sliderButtonText}>-</Text>
-          </TouchableOpacity>
-          <View style={styles.slider}>
-            <View style={[styles.sliderFill, { width: `${patientData.ejection_fraction}%` }]} />
-          </View>
-          <TouchableOpacity
-            style={styles.sliderButton}
-            onPress={() => handleInputChange('ejection_fraction', Math.min(100, patientData.ejection_fraction + 1))}
-          >
-            <Text style={styles.sliderButtonText}>+</Text>
-          </TouchableOpacity>
-        </View>
-        {/* Add more inputs for other fields */}
-        <TouchableOpacity style={styles.predictButton} onPress={handlePredict}>
-          <Text style={styles.predictButtonText}>Predict</Text>
-        </TouchableOpacity>
-      </View>
-
-      {prediction && (
-        <View style={styles.resultCard}>
-          <Text style={styles.resultTitle}>Prediction Result</Text>
-          <Text style={styles.resultText}>
-            Death Probability: {(prediction.death_probability * 100).toFixed(2)}%
+    <ScrollView>
+      <GradientBackground>
+        <View style={styles.glassMorphicBox}>
+          <Text style={styles.cardTitle}>Heart Failure Prediction</Text>
+          <Text style={styles.cardDescription}>
+            Enter patient data to predict heart failure risk
           </Text>
-          <Text style={styles.resultText}>Death Risk: {prediction.death_risk}</Text>
+          <TextInput
+            style={styles.input}
+            placeholder="Age"
+            placeholderTextColor="#ccc"
+            value={patientData.age}
+            onChangeText={(text) => handleInputChange('age', text)}
+            keyboardType="numeric"
+          />
+           <TextInput
+            style={styles.input}
+            placeholder="Sexually active"
+            placeholderTextColor="#ccc"
+            value={patientData.sex}
+            onChangeText={(text) => handleInputChange('sex', text)}
+            keyboardType="numeric"
+          />
+          <Text style={styles.label}>Anaemia: {patientData.anaemia ? 'Yes' : 'No'}</Text>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => handleInputChange('anaemia', patientData.anaemia ? 0 : 1)}
+          >
+            <Text style={styles.toggleButtonText}>Toggle Anaemia</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Creatinine Phosphokinase"
+            placeholderTextColor="#ccc"
+            value={patientData.creatinine_phosphokinase}
+            onChangeText={(text) => handleInputChange('creatinine_phosphokinase', text)}
+            keyboardType="numeric"
+          />
+          <Text style={styles.label}>Diabetes: {patientData.diabetes ? 'Yes' : 'No'}</Text>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => handleInputChange('diabetes', patientData.diabetes ? 0 : 1)}
+          >
+            <Text style={styles.toggleButtonText}>Toggle Diabetes</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Platelets"
+            placeholderTextColor="#ccc"
+            value={patientData.platelets}
+            onChangeText={(text) => handleInputChange('platelets', text)}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Serum Creatinine"
+            placeholderTextColor="#ccc"
+            value={patientData.serum_creatinine}
+            onChangeText={(text) => handleInputChange('serum_creatinine', text)}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Serum Sodium"
+            placeholderTextColor="#ccc"
+            value={patientData.serum_sodium}
+            onChangeText={(text) => handleInputChange('serum_sodium', text)}
+            keyboardType="numeric"
+          />
+          <Text style={styles.label}>High Blood Pressure: {patientData.high_blood_pressure ? 'Yes' : 'No'}</Text>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => handleInputChange('high_blood_pressure', patientData.high_blood_pressure ? 0 : 1)}
+          >
+            <Text style={styles.toggleButtonText}>Toggle High Blood Pressure</Text>
+          </TouchableOpacity>
+          <Text style={styles.label}>Smoking: {patientData.smoking ? 'Yes' : 'No'}</Text>
+          <TouchableOpacity
+            style={styles.toggleButton}
+            onPress={() => handleInputChange('smoking', patientData.smoking ? 0 : 1)}
+          >
+            <Text style={styles.toggleButtonText}>Toggle Smoking</Text>
+          </TouchableOpacity>
+          <TextInput
+            style={styles.input}
+            placeholder="Ejection Fraction"
+            placeholderTextColor="#ccc"
+            value={patientData.ejection_fraction.toString()}
+            onChangeText={(text) => handleInputChange('ejection_fraction', parseInt(text))}
+            keyboardType="numeric"
+          />
+          <TextInput
+            style={styles.input}
+            placeholder="Time"
+            placeholderTextColor="#ccc"
+            value={patientData.time}
+            onChangeText={(text) => handleInputChange('time', text)}
+            keyboardType="numeric"
+          />
+          <TouchableOpacity style={styles.predictButton} onPress={handlePredict}>
+            <Text style={styles.predictButtonText}>Predict</Text>
+          </TouchableOpacity>
         </View>
-      )}
+      </GradientBackground>
     </ScrollView>
   );
 };
 
 const styles = StyleSheet.create({
-  container: {
+  gradientBackground: {
     flex: 1,
-    padding: 16,
-    backgroundColor: '#f5f5f5',
+    padding: 8,
+    backgroundColor: '#874f41',
   },
-  card: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
-    marginBottom: 16,
+  glassMorphicBox: {
+    backgroundColor: 'rgba(255, 255, 255, 0.1)',
+    borderRadius: 20,
+    padding: 20,
+    marginBottom: 20,
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
+    shadowOffset: { width: 0, height: 10 },
+    shadowOpacity: 0.25,
+    shadowRadius: 20,
+    elevation: 5,
+    backdropFilter: 'blur(10px)',
   },
   cardTitle: {
     fontSize: 24,
     fontWeight: 'bold',
     marginBottom: 8,
+    color: '#fff',
   },
   cardDescription: {
     fontSize: 16,
-    color: '#666',
+    color: '#ddd',
     marginBottom: 16,
   },
   input: {
     borderWidth: 1,
-    borderColor: '#ddd',
-    borderRadius: 4,
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderRadius: 15,
     padding: 8,
     marginBottom: 16,
+    backgroundColor: 'rgba(255, 255, 255, 0.3)',
+    color: '#fff',
   },
   label: {
     fontSize: 16,
     marginBottom: 8,
+    color: '#fff',
   },
   toggleButton: {
-    backgroundColor: '#007AFF',
+    backgroundColor: '#8a2387',
     padding: 10,
-    borderRadius: 4,
+    borderRadius: 15,
     marginBottom: 16,
+    alignItems: 'center',
   },
   toggleButtonText: {
     color: '#fff',
     textAlign: 'center',
   },
-  sliderContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  sliderButton: {
-    backgroundColor: '#007AFF',
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  sliderButtonText: {
-    color: '#fff',
-    fontSize: 20,
-  },
-  slider: {
-    flex: 1,
-    height: 10,
-    backgroundColor: '#ddd',
-    marginHorizontal: 10,
-    borderRadius: 5,
-  },
-  sliderFill: {
-    height: '100%',
-    backgroundColor: '#007AFF',
-    borderRadius: 5,
-  },
   predictButton: {
-    backgroundColor: '#4CAF50',
+    backgroundColor: '#8a2387',
     padding: 16,
-    borderRadius: 4,
+    borderRadius: 15,
     alignItems: 'center',
   },
   predictButtonText: {
     color: '#fff',
     fontSize: 18,
     fontWeight: 'bold',
-  },
-  resultCard: {
-    backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
-    marginTop: 16,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 4,
-    elevation: 3,
-  },
-  resultTitle: {
-    fontSize: 20,
-    fontWeight: 'bold',
-    marginBottom: 8,
-  },
-  resultText: {
-    fontSize: 16,
-    marginBottom: 8,
   },
 });
 
